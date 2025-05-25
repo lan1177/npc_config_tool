@@ -22,62 +22,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { handleExcelImport, handleExcelExport } from "@/lib/excel-utils"
 import { generateId } from "@/lib/utils"
-
-// Data type definitions
-interface NPC {
-  id: string
-  编号: string
-  名称: string
-  造型: string
-  门派: string
-  备注: string
-  过期时间: string
-  气血斜率: string
-  气血基数: string
-  难度: string
-  受击增伤: string
-  魔法值基数: string
-  速度斜率: string
-  速度基数: string
-  智能速度配置: string
-  技能: string
-  行为树编号: string
-  使用等级类型: string
-  进入战斗喊话: string
-  所属战斗: string[]
-  isModified?: boolean
-}
-
-interface Battle {
-  id: string
-  name: string
-  slots: (string | null)[]
-}
-
-interface ProjectData {
-  activityName: string
-  activityId: string
-  npcs: NPC[]
-  battles: Battle[]
-}
-
-// Excel processing simulation
-const handleExcelImport = (file: File) => {
-  console.log("导入Excel文件:", file.name)
-  alert("Excel导入功能开发中...")
-}
-
-const handleExcelExport = (data: ProjectData) => {
-  const jsonData = JSON.stringify(data, null, 2)
-  const blob = new Blob([jsonData], { type: "application/json" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `${data.activityName}_${data.activityId}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  console.log("导出数据:", data)
-}
+import type { NPC, Battle, ProjectData } from "@/lib/excel-utils"
 
 // Battle Canvas Component
 function BattleCanvas({
@@ -634,155 +579,124 @@ function NPCTable({
       </div>
 
       <div className="flex-1 p-4 overflow-hidden">
-        <div className="relative">
-          <div className="border rounded-lg bg-white shadow-sm relative overflow-hidden">
-            <div className="overflow-x-auto max-w-full">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="p-3 text-left bg-gray-50 border-r border-gray-200 font-medium text-gray-700 sticky left-0 z-10">
+        <div className="relative h-full" style={{ height: 500 }}>
+          <div className="overflow-y-auto h-full">
+            <table className="w-full table-fixed">
+              <thead>
+                <tr>
+                  <th className="sticky top-0 z-10 bg-gray-50 p-3 min-w-[120px] text-left border-r border-gray-200 font-medium text-gray-700">
+                    <Checkbox
+                      checked={selectedRows.length === npcs.length}
+                      onCheckedChange={(checked) => {
+                        setSelectedRows(checked ? npcs.map((npc) => npc.id) : [])
+                      }}
+                    />
+                  </th>
+                  {!isInBattle && (
+                    <th className="sticky top-0 z-10 bg-gray-50 p-3 min-w-[140px] text-left border-r border-gray-200 font-medium text-gray-700">
+                      所属战斗
+                    </th>
+                  )}
+                  {displayFields.map((field) => {
+                    const isFrozen = frozenFields.includes(field)
+                    return (
+                      <th
+                        key={field}
+                        className={`sticky top-0 z-10 bg-gray-50 p-3 min-w-[120px] text-left ${
+                          isFrozen
+                            ? "border-r border-gray-200 font-medium text-gray-700"
+                            : ""
+                        }`}
+                      >
+                        {fieldLabels[field] || field}
+                      </th>
+                    )
+                  })}
+                  <th className="sticky top-0 z-10 bg-gray-50 p-3 min-w-[120px] text-left">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {npcs.map((npc) => (
+                  <tr key={npc.id} className="border-t hover:bg-gray-50">
+                    <td className="p-3 min-w-[120px] bg-gray-50/80 border-r border-gray-200">
                       <Checkbox
-                        checked={selectedRows.length === npcs.length}
+                        checked={selectedRows.includes(npc.id)}
                         onCheckedChange={(checked) => {
-                          setSelectedRows(checked ? npcs.map((npc) => npc.id) : [])
+                          if (checked) {
+                            setSelectedRows([...selectedRows, npc.id])
+                          } else {
+                            setSelectedRows(selectedRows.filter((id) => id !== npc.id))
+                          }
                         }}
                       />
-                    </th>
+                    </td>
                     {!isInBattle && (
-                      <th className="p-3 text-left bg-gray-50 border-r border-gray-200 font-medium text-gray-700 sticky left-0 z-10 min-w-[140px]">
-                        所属战斗
-                      </th>
+                      <td className="p-3 min-w-[140px] bg-gray-50/80 border-r border-gray-200">
+                        <div className="flex flex-wrap gap-1 items-center max-w-[200px]">
+                          {npc.所属战斗?.map((battle) => (
+                            <Badge
+                              key={battle}
+                              variant="secondary"
+                              className="cursor-pointer text-xs"
+                              onClick={() => handleToggleBattle(npc.id, battle, false)}
+                            >
+                              {battle}
+                              <X className="ml-1 h-3 w-3" />
+                            </Badge>
+                          ))}
+                          <Select
+                            onValueChange={(battleName) => {
+                              if (battleName === "__create_new__") {
+                                handleCreateNewBattle()
+                              } else {
+                                handleToggleBattle(npc.id, battleName, true)
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-auto h-6 text-xs border-dashed">
+                              <SelectValue>
+                                <Plus className="h-3 w-3" />
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allBattles
+                                .filter((battle) => !npc.所属战斗?.includes(battle.name))
+                                .map((battle) => (
+                                  <SelectItem key={battle.id} value={battle.name}>
+                                    {battle.name}
+                                  </SelectItem>
+                                ))}
+                              <SelectItem value="__create_new__">
+                                <div className="flex items-center">
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  新建战斗
+                                </div>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </td>
                     )}
                     {displayFields.map((field) => {
                       const isFrozen = frozenFields.includes(field)
                       return (
-                        <th
+                        <td
                           key={field}
-                          className={`p-3 text-left min-w-[120px] ${
-                            isFrozen
-                              ? "bg-gray-50 border-r border-gray-200 font-medium text-gray-700 sticky left-0 z-10"
-                              : ""
-                          }`}
+                          className={`p-3 min-w-[120px] ${isFrozen ? "bg-gray-50/80 border-r border-gray-200" : ""}`}
                         >
-                          {fieldLabels[field] || field}
-                        </th>
+                          {renderField(npc, field)}
+                        </td>
                       )
                     })}
-                    <th className="p-3 text-left">操作</th>
+                    <td className="p-3 min-w-[120px]">
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteNPC(npc.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {npcs.map((npc) => (
-                    <tr key={npc.id} className="border-t hover:bg-gray-50">
-                      <td className="p-3 bg-gray-50/80 border-r border-gray-200 sticky left-0 z-10">
-                        <Checkbox
-                          checked={selectedRows.includes(npc.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedRows([...selectedRows, npc.id])
-                            } else {
-                              setSelectedRows(selectedRows.filter((id) => id !== npc.id))
-                            }
-                          }}
-                        />
-                      </td>
-                      {!isInBattle && (
-                        <td className="p-3 bg-gray-50/80 border-r border-gray-200 sticky left-0 z-10 min-w-[140px]">
-                          <div className="flex flex-wrap gap-1 items-center max-w-[200px]">
-                            {npc.所属战斗?.map((battle) => (
-                              <Badge
-                                key={battle}
-                                variant="secondary"
-                                className="cursor-pointer text-xs"
-                                onClick={() => handleToggleBattle(npc.id, battle, false)}
-                              >
-                                {battle}
-                                <X className="ml-1 h-3 w-3" />
-                              </Badge>
-                            ))}
-                            <Select
-                              onValueChange={(battleName) => {
-                                if (battleName === "__create_new__") {
-                                  handleCreateNewBattle()
-                                } else {
-                                  handleToggleBattle(npc.id, battleName, true)
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-auto h-6 text-xs border-dashed">
-                                <SelectValue>
-                                  <Plus className="h-3 w-3" />
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {allBattles
-                                  .filter((battle) => !npc.所属战斗?.includes(battle.name))
-                                  .map((battle) => (
-                                    <SelectItem key={battle.id} value={battle.name}>
-                                      {battle.name}
-                                    </SelectItem>
-                                  ))}
-                                <SelectItem value="__create_new__">
-                                  <div className="flex items-center">
-                                    <Plus className="h-3 w-3 mr-1" />
-                                    新建战斗
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </td>
-                      )}
-                      {displayFields.map((field) => {
-                        const isFrozen = frozenFields.includes(field)
-                        return (
-                          <td
-                            key={field}
-                            className={`p-3 ${isFrozen ? "bg-gray-50/80 border-r border-gray-200 sticky left-0 z-10" : ""}`}
-                          >
-                            {renderField(npc, field)}
-                          </td>
-                        )
-                      })}
-                      <td className="p-3">
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteNPC(npc.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between mt-4 px-2">
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="sm" onClick={handlePrevPage} disabled={isFirstPage} className="h-8 w-8 p-0">
-                ←
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleNextPage} disabled={isLastPage} className="h-8 w-8 p-0">
-                →
-              </Button>
-              <span className="text-sm text-gray-500">字段视图:</span>
-              <Badge variant="outline" className="text-xs">
-                {currentGroup}
-              </Badge>
-              <div className="flex space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === fieldPage ? "bg-blue-500" : "bg-gray-300"
-                    }`}
-                    onClick={() => setFieldPage(i)}
-                  />
                 ))}
-              </div>
-              <span className="text-sm text-gray-500">
-                {fieldPage + 1} / {totalPages}
-              </span>
-            </div>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -865,17 +779,22 @@ function HomePageView({ onCreateNew, onImport }: { onCreateNew: () => void; onIm
 }
 
 // Import Page Component
-function ImportPage({ onBack }: { onBack: () => void }) {
+function ImportPage({ onBack, onImportSuccess }: { onBack: () => void; onImportSuccess: (projectData: ProjectData) => void }) {
   const [isDragging, setIsDragging] = useState(false)
 
-  const handleFileUpload = (files: FileList | null) => {
+  const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     const file = files[0]
     if (!file.name.endsWith(".xlsx")) {
       alert("请选择.xlsx格式的Excel文件")
       return
     }
-    handleExcelImport(file)
+    try {
+      const projectData = await handleExcelImport(file)
+      onImportSuccess(projectData)
+    } catch (e) {
+      alert("导入失败，请检查文件格式")
+    }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -921,15 +840,17 @@ function ImportPage({ onBack }: { onBack: () => void }) {
               <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <p className="text-lg font-medium text-gray-900 mb-2">拖拽Excel文件到此处</p>
               <p className="text-sm text-gray-500 mb-4">或点击选择文件</p>
-              <input
-                type="file"
-                accept=".xlsx"
-                className="hidden"
-                id="file-upload"
-                onChange={(e) => handleFileUpload(e.target.files)}
-              />
               <label htmlFor="file-upload">
-                <Button>选择文件</Button>
+                <Button asChild type="button">
+                  <span>选择文件</span>
+                </Button>
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  id="file-upload"
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                />
               </label>
             </div>
 
@@ -998,7 +919,6 @@ function NPCEditor({
       alert(`数据验证失败: ${validation.errors.join(", ")}`)
       return
     }
-
     handleExcelExport(projectData)
     alert("保存成功！")
   }
@@ -1143,11 +1063,10 @@ function NPCEditor({
       </div>
 
       <div className="flex h-[calc(100vh-80px)]">
-        <div className="w-64 bg-white border-r flex flex-col">
+        <div className="fixed left-0 top-0 h-screen w-64 bg-white border-r flex flex-col z-20">
           <div className="p-4 border-b">
             <h3 className="font-medium text-gray-900">页签管理</h3>
           </div>
-
           <ScrollArea className="flex-1 p-4">
             <div
               className={`p-3 rounded-lg cursor-pointer mb-2 ${
@@ -1194,7 +1113,7 @@ function NPCEditor({
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col">
+        <div className="ml-64 flex-1 flex flex-col">
           {activeTab !== "summary" && currentBattle && (
             <div className="bg-white border-b p-6">
               <h3 className="text-lg font-medium mb-4">{currentBattle.name} - 战斗布局</h3>
@@ -1318,7 +1237,10 @@ export default function HomePage() {
   }
 
   if (currentView === "import") {
-    return <ImportPage onBack={() => setCurrentView("home")} />
+    return <ImportPage onBack={() => setCurrentView("home")} onImportSuccess={(projectData) => {
+      setProjectData(projectData)
+      setCurrentView("editor")
+    }} />
   }
 
   return (
