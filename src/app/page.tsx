@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Upload, Plus, FileSpreadsheet, Save, ArrowLeft, Copy, Trash2, Crown, X } from "lucide-react"
+import { Upload, Plus, FileSpreadsheet, Save, ArrowLeft, Copy, Trash2, Crown, X, ArrowRight } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -562,7 +562,49 @@ function NPCTable({
     <div className="h-full flex flex-col">
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium">{isInBattle ? `${battleName} - NPC列表` : "NPC数据表"}</h3>
+          <div className="flex items-center space-x-4">
+            <h3 className="text-lg font-medium">{isInBattle ? `${battleName} - NPC列表` : "NPC数据表"}</h3>
+            {/* 字段视图切换分页器 */}
+            {!isInBattle && (
+              <div className="flex items-center ml-4">
+                <div className="flex items-center border rounded-md overflow-hidden shadow-sm">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handlePrevPage}
+                    disabled={isFirstPage}
+                    className="h-8 w-8 rounded-none border-0"
+                    style={{ borderRight: '1px solid #e5e7eb' }}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleNextPage}
+                    disabled={isLastPage}
+                    className="h-8 w-8 rounded-none border-0"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <span className="text-sm text-gray-500 ml-3">字段视图：</span>
+                <Badge variant="outline" className="text-xs ml-1 font-semibold">
+                  {currentGroup}
+                </Badge>
+                <div className="flex space-x-1 ml-3">
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      className={`w-2 h-2 rounded-full transition-colors ${i === fieldPage ? "bg-blue-500" : "bg-gray-300"}`}
+                      onClick={() => setFieldPage(i)}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-gray-500 ml-2">{fieldPage + 1} / {totalPages}</span>
+              </div>
+            )}
+          </div>
           <div className="flex items-center space-x-2">
             {selectedRows.length > 0 && (
               <Button variant="outline" size="sm" onClick={handleCopyPreviousRow}>
