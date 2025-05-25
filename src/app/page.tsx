@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { handleExcelImport, handleExcelExport } from "@/lib/excel-utils"
 import { generateId } from "@/lib/utils"
 import type { NPC, Battle, ProjectData } from "@/lib/excel-utils"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 // Battle Canvas Component
 function BattleCanvas({
@@ -391,6 +392,7 @@ function NPCTable({
   const [selectedRows, setSelectedRows] = useState<string[]>([])
   const [fieldPage, setFieldPage] = useState(0)
   const fieldsPerPage = 6
+  const [battleMenuOpenMap, setBattleMenuOpenMap] = useState<Record<string, boolean>>({})
 
   const fieldGroups = {
     basic: {
@@ -686,36 +688,39 @@ function NPCTable({
                               <X className="ml-1 h-3 w-3" />
                             </Badge>
                           ))}
-                          <Select
-                            onValueChange={(battleName) => {
-                              if (battleName === "__create_new__") {
-                                handleCreateNewBattle()
-                              } else {
-                                handleToggleBattle(npc.id, battleName, true)
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="w-auto h-6 text-xs border-dashed">
-                              <SelectValue>
+                          <DropdownMenu open={!!battleMenuOpenMap[npc.id]} onOpenChange={open => setBattleMenuOpenMap(prev => ({ ...prev, [npc.id]: open }))}>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="h-6 w-6 p-0 border-dashed">
                                 <Plus className="h-3 w-3" />
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="min-w-[120px]">
                               {allBattles
                                 .filter((battle) => !npc.所属战斗?.includes(battle.name))
                                 .map((battle) => (
-                                  <SelectItem key={battle.id} value={battle.name}>
+                                  <DropdownMenuItem
+                                    key={battle.id}
+                                    onClick={() => {
+                                      handleToggleBattle(npc.id, battle.name, true)
+                                      setBattleMenuOpenMap(prev => ({ ...prev, [npc.id]: false }))
+                                    }}
+                                  >
                                     {battle.name}
-                                  </SelectItem>
+                                  </DropdownMenuItem>
                                 ))}
-                              <SelectItem value="__create_new__">
-                                <div className="flex items-center">
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  新建战斗
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={e => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleCreateNewBattle();
+                                  setBattleMenuOpenMap(prev => ({ ...prev, [npc.id]: true }))
+                                }}
+                              >
+                                <Plus className="h-3 w-3 mr-1" /> 新建战斗
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </td>
                     )}
